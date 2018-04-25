@@ -226,9 +226,9 @@ def create_Q_matrix(n, m, k_r, ndims):
 
 def main():
     # Order of derivative on r
-    k_r = 6
+    k_r = 4
     # Order of polynomials
-    n = 8
+    n = 5
 
     ndims = 2
 
@@ -253,8 +253,8 @@ def main():
     init_A.append(A_list_deriv_initial)
     init_b.append(b_list_deriv_initial)
 
-    A_list = A_list_pos# + A_list_deriv_coupling + init_A
-    b_list = b_list_pos# + b_list_deriv_coupling + init_b
+    A_list = A_list_pos + A_list_deriv_coupling + init_A
+    b_list = b_list_pos + b_list_deriv_coupling + init_b
 
     print("######")
     c_size = ndims * n * (m - 1)
