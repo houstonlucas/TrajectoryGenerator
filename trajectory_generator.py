@@ -58,6 +58,14 @@ class TrajectoryGenerator:
         init_A.append(A_list_deriv_initial)
         init_b.append(b_list_deriv_initial)
 
+        t_end = self.keyframes[-1][-1]
+        A_list_deriv_initial, b_list_deriv_initial = self.create_deriv_constraint(self.m-1, 10.0, t=t_end, dim_index=1, k=1)
+        init_A.append(A_list_deriv_initial)
+        init_b.append(b_list_deriv_initial)
+        A_list_deriv_initial, b_list_deriv_initial = self.create_deriv_constraint(self.m-1, 0.0, t=t_end, dim_index=0, k=1)
+        init_A.append(A_list_deriv_initial)
+        init_b.append(b_list_deriv_initial)
+
         A_list = A_list_pos + A_list_deriv_coupling + init_A
         b_list = b_list_pos + b_list_deriv_coupling + init_b
 
@@ -160,7 +168,7 @@ class TrajectoryGenerator:
         b_list = []
         # Setup Positional constraints
         for dim in range(self.ndims):
-            for j in range(self.m):
+            for j in range(self.m + 1):
                 time = self.keyframes[j][-1]
                 if j > 0:
                     pos = self.keyframes[j][:-1]
