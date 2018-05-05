@@ -27,7 +27,17 @@ class TrajectoryWindow(pyglet.window.Window):
 
         # Keyframes stored as (x,y,z,psi,t) triples
         self.keyframes = [(3.0, 4.0, -1.0, -1.0, 0.0), (-2.0, 5.0, -2.0, 0.0, 1.0),
-                     (0.0, -1.0, 0.0, 1.5, 3.0), (2.0, -2.0, 4.0)]
+                          (0.0, -1.0, 0.0, 1.5, 3.0), (3.0, 4.0, 4.0)]
+
+        self.keyframes = []
+        t = 0.0
+        for i in range(4):
+            p = list(np.random.rand(2)*10 - 5)
+            self.keyframes.append([p[0], p[1], t])
+            t += 1.0
+        end_node = copy.deepcopy(self.keyframes[0])
+        end_node[-1] = t
+        self.keyframes.append(end_node)
 
         tgen = TrajectoryGenerator(self.keyframes, n, ndims, k_r)
 
@@ -36,7 +46,6 @@ class TrajectoryWindow(pyglet.window.Window):
         self.polys = tgen.parse_polys_from_vector(x)
         for poly in self.polys:
             print(poly)
-        print("#####")
 
         glTranslatef(self.width / 2.0, self.height / 2.0, 0.0)
         scale = 40.0
@@ -51,7 +60,7 @@ class TrajectoryWindow(pyglet.window.Window):
     def my_tick(self, dt):
         self.clear()
 
-        y_index_offset = len(self.polys)/2
+        y_index_offset = len(self.polys) / 2
         index_str = ""
 
         # Draw keyframes
@@ -65,10 +74,8 @@ class TrajectoryWindow(pyglet.window.Window):
             if self.current_time >= self.keyframes[i][-1]:
                 index_str = "i: " + str(i) + " t: " + str(self.current_time)
                 x_poly = self.polys[i]
-                y_poly = self.polys[i+y_index_offset]
+                y_poly = self.polys[i + y_index_offset]
 
-        print(index_str)
-        print(x_poly, y_poly)
         x = eval_poly(x_poly, self.current_time)
         y = eval_poly(y_poly, self.current_time)
 
@@ -77,11 +84,13 @@ class TrajectoryWindow(pyglet.window.Window):
         draw_circle(0.2, [0, 255, 0])
         glPopMatrix()
 
-        self.current_time += dt*self.time_scale
+        self.current_time += dt * self.time_scale
         self.current_time %= self.max_time
 
+
 def eval_poly(poly, t):
-    return sum([poly[i]*t**i for i in range(len(poly))])
+    return sum([poly[i] * t ** i for i in range(len(poly))])
+
 
 def draw_circle(radius, color=(255, 0, 0)):
     number_of_triangles = 12
