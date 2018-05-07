@@ -9,6 +9,10 @@ from trajectory_generator import *
 
 
 def main():
+    seed = np.random.randint(10000)
+    # seed = 5118
+    np.random.seed(seed)
+    print(seed)
     window = TrajectoryWindow()
     glClearColor(.5, .5, .5, 1.0)
     pyglet.clock.schedule_interval(window.my_tick, window.sim_dt)
@@ -26,15 +30,21 @@ class TrajectoryWindow(pyglet.window.Window):
         ndims = 2
 
         # Keyframes stored as (x,y,z,psi,t) triples
-        self.keyframes = [(3.0, 4.0, -1.0, -1.0, 0.0), (-2.0, 5.0, -2.0, 0.0, 1.0),
-                          (0.0, -1.0, 0.0, 1.5, 3.0), (3.0, 4.0, 4.0)]
+        self.keyframes = [(-4.0, -4.0, 0.0),
+                          (-4.0, 4.0, 0.2),
+                          (4.0, 4.0, 0.4),
+                          (4.0, -4.0, 0.6),
+                          (-4.0, -4.0, 0.8)]
 
         self.keyframes = []
         t = 0.0
+        rand_signs = {0:(-1, -1), 1:(-1, 1), 2:(1,1), 3: (1, -1)}
+
         for i in range(4):
-            p = list(np.random.rand(2)*10 - 5)
-            self.keyframes.append([p[0], p[1], t])
-            t += 1.0
+            p = list(np.random.rand(2)*5) + np.array([1.0, 1.0])
+            sx, sy = rand_signs[i]
+            self.keyframes.append([sx*p[0], sy*p[1], t])
+            t += 0.2
         end_node = copy.deepcopy(self.keyframes[0])
         end_node[-1] = t
         self.keyframes.append(end_node)
@@ -52,7 +62,7 @@ class TrajectoryWindow(pyglet.window.Window):
         glScalef(scale, scale, 1.0)
 
         self.current_time = 0.0
-        self.time_scale = 1.0
+        self.time_scale = 0.125
         self.max_time = self.keyframes[-1][-1]
 
         self.sim_dt = 1.0 / 60.0
@@ -84,6 +94,15 @@ class TrajectoryWindow(pyglet.window.Window):
         draw_circle(0.2, [0, 255, 0])
         glPopMatrix()
 
+        glPushMatrix()
+        x = str(round(x, 4)).zfill(4)
+        y = str(round(y, 4)).zfill(4)
+        x_val = pyglet.text.Label(text="x: {}".format(x), x=135, y=225)
+        y_val = pyglet.text.Label(text="y: {}".format(y), x=225, y=225)
+        glScalef(.03, .03, 1.0)
+        x_val.draw()
+        y_val.draw()
+        glPopMatrix()
         self.current_time += dt * self.time_scale
         self.current_time %= self.max_time
 

@@ -1,4 +1,6 @@
 import copy
+import random
+
 from cvxopt import spdiag, matrix, solvers
 import numpy as np
 
@@ -51,18 +53,20 @@ class TrajectoryGenerator:
 
         init_A = []
         init_b = []
-        A_list_deriv_initial, b_list_deriv_initial = self.create_deriv_constraint(0, 10.0, t=0.0, dim_index=1, k=1)
+        v_x_init = 100*(np.random.rand()-0.5)
+        v_y_init = 100*(np.random.rand()-0.5)
+        A_list_deriv_initial, b_list_deriv_initial = self.create_deriv_constraint(0, v_y_init, t=0.0, dim_index=1, k=1)
         init_A.append(A_list_deriv_initial)
         init_b.append(b_list_deriv_initial)
-        A_list_deriv_initial, b_list_deriv_initial = self.create_deriv_constraint(0, 0.0, t=0.0, dim_index=0, k=1)
+        A_list_deriv_initial, b_list_deriv_initial = self.create_deriv_constraint(0, v_x_init, t=0.0, dim_index=0, k=1)
         init_A.append(A_list_deriv_initial)
         init_b.append(b_list_deriv_initial)
 
         t_end = self.keyframes[-1][-1]
-        A_list_deriv_initial, b_list_deriv_initial = self.create_deriv_constraint(self.m-1, 10.0, t=t_end, dim_index=1, k=1)
+        A_list_deriv_initial, b_list_deriv_initial = self.create_deriv_constraint(self.m-1, v_y_init, t=t_end, dim_index=1, k=1)
         init_A.append(A_list_deriv_initial)
         init_b.append(b_list_deriv_initial)
-        A_list_deriv_initial, b_list_deriv_initial = self.create_deriv_constraint(self.m-1, 0.0, t=t_end, dim_index=0, k=1)
+        A_list_deriv_initial, b_list_deriv_initial = self.create_deriv_constraint(self.m-1, v_x_init, t=t_end, dim_index=0, k=1)
         init_A.append(A_list_deriv_initial)
         init_b.append(b_list_deriv_initial)
 
@@ -73,10 +77,19 @@ class TrajectoryGenerator:
         A = matrix(np.vstack(A_list))
         b = matrix(np.vstack(b_list))
 
-        p = matrix(np.zeros(c_size))
-        G = matrix(np.zeros((1, c_size)))
-        h = matrix(np.zeros(1))
+        G_list, h_list = [], []
+        G_temp, h_temp = self.create_corridor_constraints(2, 1.5, 3)
+        G_list += G_temp
+        h_list += h_temp
 
+        # G_temp, h_temp = self.create_corridor_constraints(3, 0.5, 3)
+        # G_list += G_temp
+        # h_list += h_temp
+
+        G = matrix(np.vstack(G_list))
+        h = matrix(np.vstack(h_list))
+
+        p = matrix(np.zeros(c_size))
         sol = solvers.qp(self.Q, p, G, h, A, b, kktsolver='ldl', options={'kktreg': 1e-9})
         return np.array(sol['x'])
 
@@ -256,6 +269,62 @@ class TrajectoryGenerator:
         Q = spdiag(Q_part * self.ndims)
         return Q
 
+    def create_corridor_constraints(self, j, corridor_width, num_divisions):
+        sigma_j = np.asarray(self.keyframes[j][:self.ndims])
+        sigma_j_plus_1 = np.asarray(self.keyframes[j + 1][:self.ndims])
+        corridor_vector = (sigma_j_plus_1 - sigma_j) / np.linalg.norm(sigma_j_plus_1 - sigma_j)
+        t_j = self.keyframes[j][-1]
+        t_j_plus_1 = self.keyframes[j+1][-1]
+        G_list = []
+        h_list = []
+        corridor_time = t_j_plus_1 - t_j
+        for i in range(1, num_divisions+1):
+            t = t_j + (corridor_time * i / (float(num_divisions+1)))
+            G, h = self.create_corridor_constraint(j, corridor_width, corridor_vector, sigma_j, t)
+            G_list += G
+            h_list += h
+            # for i in range(len(G_list)):
+            #     print(G_list[i])
+            #     print(h_list[i])
+        return G_list, h_list
+
+    def create_corridor_constraint(self, j, corridor_width, corridor_vector, sigma_j, t):
+        G_list = []
+        h_list = []
+
+        T = np.outer(corridor_vector, corridor_vector)
+        I = np.eye(self.ndims)
+        I_minus_T = (I - T)
+        I_minus_T_times_sigma = np.matmul(I_minus_T, sigma_j)
+
+        num_leading_polys = j
+        num_trailing_polys = self.m - (j + 1)
+
+        num_leading_zeros = num_leading_polys * self.n
+        num_trailing_zeros = num_trailing_polys * self.n
+
+        leading = [0.0] * num_leading_zeros
+        trailing = [0.0] * num_trailing_zeros
+
+        for col in range(self.ndims):
+            # TODO build G
+            G = []
+            G_prime = []
+            for row in range(self.ndims):
+                a = I_minus_T[row][col]
+                sub_constraint = [a * t**i for i in range(self.n)]
+                negative_sub_constraint = [-a * t**i for i in range(self.n)]
+                G += leading + sub_constraint + trailing
+                G_prime += leading + negative_sub_constraint + trailing
+
+            G_list.append(G)
+            G_list.append(G_prime)
+            h_component = np.matmul(I_minus_T_times_sigma, I[:,col])
+            # TODO inspect h_component by hand
+            h_list.append(corridor_width + h_component)
+            h_list.append(corridor_width - h_component)
+
+        return G_list, h_list
 
 def main():
     # Order of derivative on r
